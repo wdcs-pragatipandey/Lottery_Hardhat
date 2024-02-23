@@ -55,7 +55,7 @@ describe("Lottery Contract", function () {
     const initialBalance = await ethers.provider.getBalance(addr2Address);
 
     const ticketPrice = 100;
-    await lottery.connect(addr2).BuyTickets(1, 5, { value: ticketPrice * 5 });
+    await lottery.connect(addr2).buyTickets(1, 5, { value: ticketPrice * 5 });
 
     const finalBalance = await ethers.provider.getBalance(addr2Address);
 
@@ -64,13 +64,13 @@ describe("Lottery Contract", function () {
   });
 
   it("Should draw lottery winner after expiration", async function () {
-    const expirationTime = Math.floor(Date.now() / 1000) + 3600; 
+    const expirationTime = Math.floor(Date.now() / 1000) + 3600;
     await lottery.createLottery(addr1.address, 100, 1000, 10, expirationTime);
 
     await increaseTime(3601);
 
     try {
-      const tx = await lottery.connect(addr1).DrawLotteryWinner(1); 
+      const tx = await lottery.connect(addr1).drawLotteryWinner(1);
       const receipt = await tx.wait();
 
       const logs = receipt.logs;
@@ -83,7 +83,7 @@ describe("Lottery Contract", function () {
 
       assert.equal(receipt.status, 1, "Drawing lottery winner failed");
 
-      const winner = await lottery.getWinner(1); 
+      const winner = await lottery.getWinner(1);
       assert.notEqual(winner, "0x0000000000000000000000000000000000000000", "Lottery winner not set");
     } catch (error) {
       assert.fail(`Error drawing lottery winner: ${error.message}`);
@@ -96,19 +96,19 @@ describe("Lottery Contract", function () {
     const maxTickets = 1000;
     const operatorCommissionPercentage = 10;
 
-    await lottery.createLottery(addr1.address, ticketPrice, maxTickets, operatorCommissionPercentage, expirationTime+3600);
+    await lottery.createLottery(addr1.address, ticketPrice, maxTickets, operatorCommissionPercentage, expirationTime + 3600);
 
     const numTickets = 5;
-    await lottery.connect(addr2).BuyTickets(1, numTickets, { value: ticketPrice * numTickets });
+    await lottery.connect(addr2).buyTickets(1, numTickets, { value: ticketPrice * numTickets });
 
     await increaseTime(3601);
 
-    await lottery.connect(addr1).DrawLotteryWinner(1);
+    await lottery.connect(addr1).drawLotteryWinner(1);
 
     const initialOperatorBalance = await ethers.provider.getBalance(addr1.address);
     const initialWinnerBalance = await ethers.provider.getBalance(addr2.address);
 
-    await lottery.connect(addr2).ClaimLottery(1);
+    await lottery.connect(addr2).claimLottery(1);
 
     const finalOperatorBalance = await ethers.provider.getBalance(addr1.address);
     const finalWinnerBalance = await ethers.provider.getBalance(addr2.address);
@@ -177,21 +177,21 @@ describe("Lottery Contract", function () {
 
   it("Should revert when buying tickets with invalid inputs", async function () {
     try {
-      await lottery.connect(addr2).BuyTickets(999, 5, { value: 500 });
+      await lottery.connect(addr2).buyTickets(999, 5, { value: 500 });
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
     }
 
     try {
-      await lottery.connect(addr2).BuyTickets(1, 5, { value: 400 });
+      await lottery.connect(addr2).buyTickets(1, 5, { value: 400 });
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
     }
 
     try {
-      await lottery.connect(addr2).BuyTickets(1, 0, { value: 0 });
+      await lottery.connect(addr2).buyTickets(1, 0, { value: 0 });
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
@@ -199,7 +199,7 @@ describe("Lottery Contract", function () {
 
     try {
       await increaseTime(7200);
-      await lottery.connect(addr2).BuyTickets(1, 5, { value: 500 });
+      await lottery.connect(addr2).buyTickets(1, 5, { value: 500 });
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
@@ -209,13 +209,13 @@ describe("Lottery Contract", function () {
 
   it("Should revert when drawing lottery winner under invalid conditions", async function () {
     try {
-      await lottery.connect(addr1).DrawLotteryWinner(999);
+      await lottery.connect(addr1).drawLotteryWinner(999);
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
     }
     try {
-      await lottery.connect(addr1).DrawLotteryWinner(1);
+      await lottery.connect(addr1).drawLotteryWinner(1);
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
@@ -224,13 +224,13 @@ describe("Lottery Contract", function () {
 
   it("Should revert when claiming lottery winnings under invalid conditions", async function () {
     try {
-      await lottery.connect(addr2).ClaimLottery(999);
+      await lottery.connect(addr2).claimLottery(999);
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
     }
     try {
-      await lottery.connect(addr1).ClaimLottery(1);
+      await lottery.connect(addr1).claimLottery(1);
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
