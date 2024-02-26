@@ -1,22 +1,21 @@
 require('dotenv').config();
 require('@nomiclabs/hardhat-ethers');
 
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
+const { mnemonic } = require('./secret.json');
+
 module.exports = {
   networks: {
-    Sepolia: {
-      url: `https://sepolia.infura.io/v3/ccec76206b4e441b99f3f009b73cb3ae`,
-      accounts: [process.env.PRIVATE_KEY]
+    mumbai: {
+      url: process.env.MUMBAI_RPC_URL,
+      accounts: { mnemonic: mnemonic },
+      chainId: 80001
     },
-
     hardhat: {
       chainId: 1337
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_APIKEY
+    apiKey: process.env.POLYGONSCAN_APIKEY
   },
   sourcify: {
     enabled: false

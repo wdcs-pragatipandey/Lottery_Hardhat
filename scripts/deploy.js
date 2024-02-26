@@ -4,14 +4,14 @@ async function main() {
   console.log("Deploying contracts with the account:", deployer.address);
 
   const Lottery = await ethers.getContractFactory("Lottery");
-  const lottery = await Lottery.deploy(9475);
+  const lottery = await Lottery.deploy(7320);
 
-  console.log("Lottery deployed to:", lottery.address);
+  console.log("Lottery contract address:", lottery.address);
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
+  .catch(error => {
     console.error(error);
     process.exit(1);
   });

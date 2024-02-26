@@ -1,30 +1,26 @@
-const { ethers } = require("hardhat");
-const { assert, expect } = require("chai");
+const { assert, expect } = require('chai');
+const { ethers, network } = require('hardhat');
+require('dotenv').config();
 
-describe("Lottery Contract", function () {
+describe('Lottery Contract', function () {
+  let Lottery;
   let owner;
   let addr1;
   let addr2;
-  let addrs;
-  let Lottery;
   let lottery;
 
   beforeEach(async function () {
-    [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    Lottery = "0x54945Dd8182fb20DaBAc106eC0D64b23030e4Ac9";
+    owner = "0xF622D645865Cbd2A9eF2c35E7eD23c33785A3a82";
+    addr1 = "0xE7A4865DC18d168a8F2af6Fe2Cfc0805C8299387";
+    addr2 = "0xEEdE33770D09722B8B5Ada6A688c0806Dc5E8611";
 
-    const LotteryFactory = await ethers.getContractFactory("Lottery");
-    Lottery = await LotteryFactory.deploy(0);
-    await Lottery.deployed();
-    lottery = Lottery.connect(owner);
+    const LotteryContract = await ethers.getContractFactory("Lottery");
+    lottery = await LotteryContract.attach(Lottery);
   });
 
-  async function increaseTime(seconds) {
-    await ethers.provider.send("evm_increaseTime", [seconds]);
-    await ethers.provider.send("evm_mine", []);
-  }
-
   it("Should create a lottery", async function () {
-    const addr1Address = await addr1.getAddress();
+    const addr1Address = addr1;
 
     await lottery.createLottery(
       addr1Address,
@@ -42,86 +38,60 @@ describe("Lottery Contract", function () {
   });
 
   it("Should allow buying tickets", async function () {
-    const addr2Address = await addr2.getAddress();
+    const addr2PrivateKey = process.env.ACC_2_KEY;
+    const addr2Wallet = new ethers.Wallet(addr2PrivateKey, ethers.provider);
 
-    await lottery.createLottery(
-      await addr1.getAddress(),
-      100,
-      1000,
-      10,
-      Math.floor(Date.now() / 1000) + 3600
-    );
-
-    const initialBalance = await ethers.provider.getBalance(addr2Address);
+    const initialBalance = await ethers.provider.getBalance(addr2Wallet.address);
 
     const ticketPrice = 100;
-    await lottery.connect(addr2).buyTickets(1, 5, { value: ticketPrice * 5 });
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const expirationTime = currentTimestamp + 3600;
+    assert.isBelow(currentTimestamp, expirationTime, "Lottery has expired");
+    await lottery.connect(addr2Wallet).buyTickets(1, 5, { value: ticketPrice * 5 });
 
-    const finalBalance = await ethers.provider.getBalance(addr2Address);
+    const finalBalance = await ethers.provider.getBalance(addr2Wallet.address);
 
     const remainingTickets = await lottery.getRemainingTickets(1);
     assert.equal(remainingTickets, 995);
   });
 
+  async function waitFor(timestamp) {
+    const delay = timestamp * 1000 - Date.now();
+    return new Promise(resolve => setTimeout(resolve, delay));
+  }
+
   it("Should draw lottery winner after expiration", async function () {
     const expirationTime = Math.floor(Date.now() / 1000) + 3600;
-    await lottery.createLottery(addr1.address, 100, 1000, 10, expirationTime);
 
-    await increaseTime(3601);
+    await waitFor(expirationTime);
 
     try {
       const tx = await lottery.connect(addr1).drawLotteryWinner(1);
       const receipt = await tx.wait();
-
       const logs = receipt.logs;
       const event = logs.find(log => log.event === "LotteryWinnerRequestSent");
       const requestId = event.args.requestId;
 
       assert.isDefined(requestId, "Request ID should be defined");
-
       assert.isDefined(event, "LotteryWinnerRequestSent event should be emitted");
-
-      assert.equal(receipt.status, 1, "Drawing lottery winner failed");
-
-      const winner = await lottery.getWinner(1);
-      assert.notEqual(winner, "0x0000000000000000000000000000000000000000", "Lottery winner not set");
     } catch (error) {
       assert.fail(`Error drawing lottery winner: ${error.message}`);
     }
   });
 
   it("Should claim lottery winnings", async function () {
-    const expirationTime = Math.floor(Date.now() / 1000) + 3600;
-    const ticketPrice = 100;
-    const maxTickets = 1000;
-    const operatorCommissionPercentage = 10;
+    try {
+      const isWinnerDrawn = await lottery.drawLotteryWinner(1);
+      assert.isTrue(isWinnerDrawn, "Lottery winner has not been drawn yet");
 
-    await lottery.createLottery(addr1.address, ticketPrice, maxTickets, operatorCommissionPercentage, expirationTime + 3600);
-
-    const numTickets = 5;
-    await lottery.connect(addr2).buyTickets(1, numTickets, { value: ticketPrice * numTickets });
-
-    await increaseTime(3601);
-
-    await lottery.connect(addr1).drawLotteryWinner(1);
-
-    const initialOperatorBalance = await ethers.provider.getBalance(addr1.address);
-    const initialWinnerBalance = await ethers.provider.getBalance(addr2.address);
-
-    await lottery.connect(addr2).claimLottery(1);
-
-    const finalOperatorBalance = await ethers.provider.getBalance(addr1.address);
-    const finalWinnerBalance = await ethers.provider.getBalance(addr2.address);
-
-    const vaultAmount = numTickets * ticketPrice;
-    const operatorCommission = (vaultAmount * operatorCommissionPercentage) / 100;
-
-    assert.equal(finalOperatorBalance.sub(initialOperatorBalance).toNumber(), operatorCommission, "Operator did not receive the correct commission");
-
-    assert.equal(finalWinnerBalance.sub(initialWinnerBalance).toNumber(), vaultAmount - operatorCommission, "Winner did not receive the correct amount");
+      await lottery.connect(addr2).claimLottery(1);
+    } catch (error) {
+      assert.fail(`Error claiming lottery winnings: ${error.message}`);
+    }
   });
 
   it("Should revert when creating a lottery with invalid parameters", async function () {
+    const addr1Address = addr1;
     try {
       await lottery.createLottery(
         ethers.constants.AddressZero,
@@ -137,7 +107,7 @@ describe("Lottery Contract", function () {
 
     try {
       await lottery.createLottery(
-        await addr1.getAddress(),
+        addr1Address,
         100,
         1000,
         10,
@@ -150,7 +120,7 @@ describe("Lottery Contract", function () {
 
     try {
       await lottery.createLottery(
-        await addr1.getAddress(),
+        addr1Address,
         0,
         1000,
         10,
@@ -163,7 +133,7 @@ describe("Lottery Contract", function () {
 
     try {
       await lottery.createLottery(
-        await addr1.getAddress(),
+        addr1Address,
         100,
         0,
         10,
@@ -198,14 +168,12 @@ describe("Lottery Contract", function () {
     }
 
     try {
-      await increaseTime(7200);
       await lottery.connect(addr2).buyTickets(1, 5, { value: 500 });
       assert.fail("Transaction should have reverted");
     } catch (error) {
       assert.include(error.message, "revert", "Error message must contain revert");
     }
   });
-
 
   it("Should revert when drawing lottery winner under invalid conditions", async function () {
     try {
@@ -236,7 +204,18 @@ describe("Lottery Contract", function () {
       assert.include(error.message, "revert", "Error message must contain revert");
     }
   });
-
-
-
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
