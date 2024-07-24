@@ -206,16 +206,3 @@ describe('Lottery Contract', function () {
   });
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-

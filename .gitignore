@@ -2,7 +2,7 @@ node_modules
 .env
 secret.json
 bin
-
+package-lock.json
 # Hardhat files
 /cache
 /artifacts
